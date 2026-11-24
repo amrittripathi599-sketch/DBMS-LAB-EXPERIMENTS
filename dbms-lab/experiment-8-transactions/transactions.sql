@@ -1,0 +1,106 @@
+-- =====================================================
+-- Experiment 8
+-- Aim: Implement banking-style transactions using BEGIN, COMMIT, ROLLBACK, and
+-- SAVEPOINT. Simulate partial failures. Demonstrate isolation levels and
+-- concurrency anomalies using two sessions.
+-- =====================================================
+
+-- Creating Banking Table
+CREATE TABLE Accounts (
+    Account_ID INT PRIMARY KEY,
+    Holder_Name VARCHAR(50),
+    Balance DECIMAL(10,2)
+);
+
+INSERT INTO Accounts VALUES
+(101, 'Amit', 10000),
+(102, 'Rahul', 8000);
+
+SELECT * FROM Accounts;
+
+-- ===== BEGIN and COMMIT =====
+START TRANSACTION;
+
+UPDATE Accounts
+SET Balance = Balance - 2000
+WHERE Account_ID = 101;
+
+UPDATE Accounts
+SET Balance = Balance + 2000
+WHERE Account_ID = 102;
+
+COMMIT;
+
+-- ===== ROLLBACK =====
+START TRANSACTION;
+
+UPDATE Accounts
+SET Balance = Balance - 5000
+WHERE Account_ID = 101;
+
+ROLLBACK;
+
+-- ===== SAVEPOINT =====
+START TRANSACTION;
+
+UPDATE Accounts
+SET Balance = Balance - 1000
+WHERE Account_ID = 101;
+
+SAVEPOINT sp1;
+
+UPDATE Accounts
+SET Balance = Balance - 20000
+WHERE Account_ID = 102;
+
+ROLLBACK TO SAVEPOINT sp1;
+
+COMMIT;
+
+-- ===== Partial Failure Simulation =====
+START TRANSACTION;
+
+UPDATE Accounts
+SET Balance = Balance - 500
+WHERE Account_ID = 101;
+
+-- Simulated failure: invalid account
+UPDATE Accounts
+SET Balance = Balance + 500
+WHERE Account_ID = 999;
+
+ROLLBACK;
+
+-- ===== Isolation Levels =====
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+SELECT * FROM Accounts;
+COMMIT;
+
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT * FROM Accounts;
+COMMIT;
+
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT * FROM Accounts;
+COMMIT;
+
+-- ===== Concurrency Anomaly Demonstration (run in two separate sessions) =====
+
+-- SESSION 1
+-- START TRANSACTION;
+-- SELECT Balance FROM Accounts WHERE Account_ID = 101;
+
+-- SESSION 2 (run while Session 1's transaction is still open)
+-- START TRANSACTION;
+-- UPDATE Accounts SET Balance = Balance - 500 WHERE Account_ID = 101;
+-- COMMIT;
+
+-- SESSION 1 (continued)
+-- SELECT Balance FROM Accounts WHERE Account_ID = 101;
+-- COMMIT;
+
+-- Final check
+SELECT * FROM Accounts;
